@@ -30,10 +30,10 @@ export default function Navbar() {
         right: 0,
         zIndex: 100,
         transition: "all 0.3s ease",
-        background: "blur(20px)",
-        backdropFilter: scrolled ? "blur(20px)" : "none",
-        WebkitBackdropFilter: scrolled ? "blur(20px)" : "none",
-        borderBottom: scrolled
+        background: (scrolled || mobileOpen) ? "rgba(10, 10, 26, 0.85)" : "transparent",
+        backdropFilter: (scrolled || mobileOpen) ? "blur(12px)" : "none",
+        WebkitBackdropFilter: (scrolled || mobileOpen) ? "blur(12px)" : "none",
+        borderBottom: (scrolled || mobileOpen)
           ? "1px solid rgba(255,255,255,0.08)"
           : "1px solid transparent",
       }}
@@ -150,11 +150,8 @@ export default function Navbar() {
         {mobileOpen && (
           <div
             style={{
-              background: "rgba(10, 10, 26, 0.97)",
-              backdropFilter: "blur(24px)",
-              WebkitBackdropFilter: "blur(24px)",
               borderTop: "1px solid rgba(255,255,255,0.08)",
-              padding: "24px 0 32px",
+              padding: "16px 0 24px",
               display: "flex",
               flexDirection: "column",
               gap: 8,
