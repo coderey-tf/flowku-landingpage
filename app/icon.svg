@@ -1,0 +1,9 @@
+<svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" role="img">
+  <title>Flowku</title>
+  <desc>Flowku favicon — wave ripple mark</desc>
+
+  <rect x="0" y="0" width="32" height="32" rx="9" fill="#1A9E6E"/>
+  <path d="M5 16 C8 10, 14 10, 17 16 C20 22, 26 22, 29 16" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round"/>
+  <path d="M5 16 C8 10, 14 10, 17 16 C20 22, 26 22, 29 16" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round" opacity="0.45" transform="translate(0,7)"/>
+  <path d="M5 16 C8 10, 14 10, 17 16 C20 22, 26 22, 29 16" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round" opacity="0.18" transform="translate(0,13)"/>
+</svg>
