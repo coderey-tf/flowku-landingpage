@@ -5,15 +5,10 @@ self.addEventListener("install", function (e) {
 self.addEventListener("activate", function (e) {
   e.waitUntil(
     caches.keys().then(function (cacheNames) {
-      // Filter hanya cache milik Vite PWA (selalu mengandung kata 'workbox')
-      const pwaCaches = cacheNames.filter(
-        (name) => name.includes("workbox") || name.includes("flowku"),
-      );
-
-      if (pwaCaches.length > 0) {
-        // Terdapat cache lama dari PWA (seperti workbox-precache), hapus semuanya
+      if (cacheNames.length > 0) {
+        // Terdapat cache lama dari PWA (workbox, firestore, dll), bersihkan SEMUA
         return Promise.all(
-          pwaCaches.map(function (cacheName) {
+          cacheNames.map(function (cacheName) {
             return caches.delete(cacheName);
           }),
         )
