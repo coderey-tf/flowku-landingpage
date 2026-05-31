@@ -1,0 +1,54 @@
+name: Deploy Landing Page to VPS
+
+on:
+  push:
+    branches:
+      - main # Jalankan workflow saat ada push ke branch main
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build static HTML
+        run: pnpm run build
+        # Hasil build akan ada di folder 'out/' karena menggunakan output: 'export' di next.config.js
+
+      - name: Prepare target directory
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USERNAME }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT || 22 }}
+          script: |
+            mkdir -p /var/www/flowku-landingpage
+
+      - name: Deploy to VPS via SCP
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USERNAME }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT || 22 }}
+          source: "out/*"
+          target: /var/www/flowku-landingpage
+          strip_components: 1
+          # strip_components: 1 memastikan isi folder 'out' langsung dicopy ke target dir, bukan foldernya.
