@@ -48,43 +48,28 @@ export default async function Image() {
             style={{
               display: "flex",
               alignItems: "center",
-              marginBottom: "20px",
+              marginBottom: "30px",
             }}
           >
-            <div
-              style={{
-                display: "flex",
-                width: "80px",
-                height: "80px",
-                background: "#1A9E6E",
-                borderRadius: "20px",
-                marginRight: "24px",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <div
-                style={{
-                  display: "flex",
-                  width: "40px",
-                  height: "40px",
-                  background: "#0A1F14",
-                  borderRadius: "10px",
-                }}
-              />
-            </div>
-            <h1
-              style={{
-                fontSize: 90,
-                fontWeight: "bold",
-                color: "#E8F5EE",
-                margin: 0,
-                lineHeight: 1.2,
-                letterSpacing: "-0.05em",
-              }}
-            >
-              Flowku
-            </h1>
+            <svg width="480" height="144" viewBox="0 0 320 96" xmlns="http://www.w3.org/2000/svg" role="img">
+              <rect x="0" y="0" width="96" height="96" rx="26" fill="#1A9E6E"/>
+              <path d="M18 48 C28 30, 46 30, 56 48 C66 66, 84 66, 94 48" fill="none" stroke="#ffffff" strokeWidth="6.5" strokeLinecap="round"/>
+              <path d="M18 48 C28 30, 46 30, 56 48 C66 66, 84 66, 94 48" fill="none" stroke="#ffffff" strokeWidth="6.5" strokeLinecap="round" opacity="0.45" transform="translate(0,18)"/>
+              <path d="M18 48 C28 30, 46 30, 56 48 C66 66, 84 66, 94 48" fill="none" stroke="#ffffff" strokeWidth="6.5" strokeLinecap="round" opacity="0.18" transform="translate(0,36)"/>
+
+              <text x="116" y="60"
+                fontFamily="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+                fontSize="52"
+                fontWeight="800"
+                letterSpacing="-1.5"
+                fill="#ffffff">flowku</text>
+              <text x="118" y="82"
+                fontFamily="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+                fontSize="15"
+                fontWeight="600"
+                letterSpacing="3"
+                fill="#ffffff">FINANCIAL TRACKER</text>
+            </svg>
           </div>
           
           <p
