@@ -21,7 +21,7 @@ export const metadata: Metadata = {
     siteName: "Flowku",
     images: [
       {
-        url: "/og-image.png",
+        url: "/icon.svg",
         width: 1200,
         height: 630,
         alt: "Flowku — Kelola Keuangan Bersama Pasangan",
