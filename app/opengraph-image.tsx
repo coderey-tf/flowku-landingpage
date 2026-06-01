@@ -1,7 +1,7 @@
 import { ImageResponse } from "next/og";
 
 // Route segment config
-export const runtime = "edge";
+export const dynamic = "force-static";
 
 // Image metadata
 export const alt = "Flowku — Kelola Keuangan Bersama Pasangan";
@@ -51,25 +51,61 @@ export default async function Image() {
               marginBottom: "30px",
             }}
           >
-            <svg width="480" height="144" viewBox="0 0 320 96" xmlns="http://www.w3.org/2000/svg" role="img">
-              <rect x="0" y="0" width="96" height="96" rx="26" fill="#1A9E6E"/>
-              <path d="M18 48 C28 30, 46 30, 56 48 C66 66, 84 66, 94 48" fill="none" stroke="#ffffff" strokeWidth="6.5" strokeLinecap="round"/>
-              <path d="M18 48 C28 30, 46 30, 56 48 C66 66, 84 66, 94 48" fill="none" stroke="#ffffff" strokeWidth="6.5" strokeLinecap="round" opacity="0.45" transform="translate(0,18)"/>
-              <path d="M18 48 C28 30, 46 30, 56 48 C66 66, 84 66, 94 48" fill="none" stroke="#ffffff" strokeWidth="6.5" strokeLinecap="round" opacity="0.18" transform="translate(0,36)"/>
+            <div style={{ display: "flex", alignItems: "center" }}>
+              <div
+                style={{
+                  display: "flex",
+                  width: 144,
+                  height: 144,
+                  backgroundColor: "#1A9E6E",
+                  borderRadius: 39,
+                  position: "relative",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <svg width="144" height="144" viewBox="0 0 96 96">
+                  <path d="M18 48 C28 30, 46 30, 56 48 C66 66, 84 66, 94 48" fill="none" stroke="#ffffff" strokeWidth="6.5" strokeLinecap="round" />
+                  <path d="M18 66 C28 48, 46 48, 56 66 C66 84, 84 84, 94 66" fill="none" stroke="#ffffff" strokeWidth="6.5" strokeLinecap="round" opacity="0.45" />
+                  <path d="M18 84 C28 66, 46 66, 56 84 C66 102, 84 102, 94 84" fill="none" stroke="#ffffff" strokeWidth="6.5" strokeLinecap="round" opacity="0.18" />
+                </svg>
+              </div>
 
-              <text x="116" y="60"
-                fontFamily="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
-                fontSize="52"
-                fontWeight="800"
-                letterSpacing="-1.5"
-                fill="#ffffff">flowku</text>
-              <text x="118" y="82"
-                fontFamily="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
-                fontSize="15"
-                fontWeight="600"
-                letterSpacing="3"
-                fill="#ffffff">FINANCIAL TRACKER</text>
-            </svg>
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  marginLeft: 30,
+                  justifyContent: "center",
+                }}
+              >
+                <span
+                  style={{
+                    fontFamily: "sans-serif",
+                    fontSize: 78,
+                    fontWeight: 800,
+                    letterSpacing: "-1.5px",
+                    color: "#ffffff",
+                    lineHeight: 1,
+                  }}
+                >
+                  flowku
+                </span>
+                <span
+                  style={{
+                    fontFamily: "sans-serif",
+                    fontSize: 22.5,
+                    fontWeight: 600,
+                    letterSpacing: "3px",
+                    color: "#ffffff",
+                    marginTop: 8,
+                    lineHeight: 1,
+                  }}
+                >
+                  FINANCIAL TRACKER
+                </span>
+              </div>
+            </div>
           </div>
           
           <p
