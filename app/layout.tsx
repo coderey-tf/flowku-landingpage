@@ -19,14 +19,6 @@ export const metadata: Metadata = {
       "Flowku membantu pasangan dan individu mencatat keuangan, membuat anggaran, dan mencapai goals finansial bersama. Coba gratis 30 hari, tanpa kartu kredit.",
     url: "https://flowku.my.id",
     siteName: "Flowku",
-    images: [
-      {
-        url: "/icon.svg",
-        width: 1200,
-        height: 630,
-        alt: "Flowku — Kelola Keuangan Bersama Pasangan",
-      },
-    ],
     locale: "id_ID",
     type: "website",
   },
@@ -35,7 +27,6 @@ export const metadata: Metadata = {
     title: "Flowku — Kelola Keuangan Bersama Pasangan",
     description:
       "Flowku membantu pasangan dan individu mencatat keuangan bersama. Coba gratis 30 hari.",
-    images: ["/og-image.png"],
   },
   alternates: {
     canonical: "https://flowku.my.id",
