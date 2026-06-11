@@ -9,6 +9,63 @@ export const metadata: Metadata = {
 
 const changelogs = [
   {
+    version: "v1.1.0",
+    date: "11 Juni 2026",
+    title: "Perbaikan UI & PWA Update",
+    type: "update",
+    changes: [
+      "Angka 'Rata-rata/hari' di halaman Laporan kini tidak lagi menampilkan desimal panjang.",
+      "Kartu kategori anggaran dirombak ulang — layout berlapis 3 baris agar lebih lapang dan mudah dibaca di layar kecil.",
+      "Nama kategori yang panjang kini terpotong rapi dengan ellipsis dan tidak mendesak tombol lain.",
+      "Informasi sisa anggaran kini ditampilkan dengan label 'Sisa Rp...' atau 'Lewat Rp...' yang lebih jelas.",
+      "Notifikasi update PWA diperbaiki — toast muncul lebih cepat segera setelah versi baru siap.",
+      "User kini punya kendali penuh: klik tombol 'Perbarui' untuk menerapkan update, halaman tidak lagi reload sendiri tanpa izin.",
+    ],
+  },
+  {
+    version: "v1.0.4",
+    date: "10 Juni 2026",
+    title: "Form Transaksi Baru",
+    type: "feature",
+    changes: [
+      "Form tambah dan edit transaksi diperbarui dengan tampilan yang lebih lengkap dan intuitif.",
+      "Perbaikan tampilan halaman Profil.",
+    ],
+  },
+  {
+    version: "v1.0.3",
+    date: "10 Juni 2026",
+    title: "Modul Anggaran & Laporan",
+    type: "feature",
+    changes: [
+      "Fitur Anggaran (Budget) baru — atur batas pengeluaran per kategori dengan progress bar dan notifikasi jika melebihi batas.",
+      "Halaman Laporan diperbarui dengan grafik mingguan, pie chart per kategori, dan perbandingan bulan sebelumnya.",
+      "Pembaruan halaman Goals, Profil, dan alur Onboarding.",
+      "Keamanan Firestore diperketat dengan aturan akses yang lebih spesifik.",
+    ],
+  },
+  {
+    version: "v1.0.2",
+    date: "6 Juni 2026",
+    title: "Detail & Edit Transaksi",
+    type: "feature",
+    changes: [
+      "Tap transaksi untuk melihat detail lengkap, mengedit, atau menghapus langsung dari modal.",
+      "Sinkronisasi data pasangan lebih andal dan akurat.",
+    ],
+  },
+  {
+    version: "v1.0.1",
+    date: "4 Juni 2026",
+    title: "Kategori Kustom & Contextual Help",
+    type: "feature",
+    changes: [
+      "Kategori Kustom — tambah dan kelola kategori pengeluaran/pemasukan sendiri sesuai preferensi.",
+      "Contextual Help System — tooltip dan walkthrough panduan fitur untuk membantu pengguna baru.",
+      "Halaman Transaksi kini mendukung infinite scroll, pencarian, filter kategori, dan filter rentang tanggal.",
+    ],
+  },
+  {
     version: "v1.0.0",
     date: "2 Juni 2026",
     title: "Initial Release",
@@ -23,6 +80,7 @@ const changelogs = [
     ],
   },
 ];
+
 
 const getTypeIcon = (type: string) => {
   switch (type) {
