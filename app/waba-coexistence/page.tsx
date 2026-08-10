@@ -116,9 +116,10 @@ export default function WabaCoexistencePage() {
 
     window.fbAsyncInit = function () {
       if (window.FB) {
+        if ((window.FB as any)._flowkuInitialized) return; // prevent double-init race
+        (window.FB as any)._flowkuInitialized = true;
         window.FB.init({
           appId: appId.trim(),
-          cookie: true,
           xfbml: true,
           version: "v26.0",
         });
