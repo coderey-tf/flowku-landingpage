@@ -19,6 +19,9 @@ export async function POST(request: Request) {
     const appId = body.appId?.trim() || process.env.META_APP_ID;
     const appSecret = body.appSecret?.trim() || process.env.META_APP_SECRET;
     const code = body.code?.trim();
+    // redirect_uri harus identik dengan yang dikirim FB.login() via config_id.
+    // Frontend mengirim redirectUri (halaman saat ini), fallback ke empty string.
+    const redirectUri = body.redirectUri?.trim() || "";
 
     if (!appId || !appSecret || !code) {
       return NextResponse.json(
@@ -30,15 +33,21 @@ export async function POST(request: Request) {
       );
     }
 
-    // SPESIFIKASI META EMBEDDED SIGNUP (JS SDK):
-    // Parameter `redirect_uri` WAJIB dikirimkan sebagai string kosong ("")
     const tokenUrl = new URL(
       "https://graph.facebook.com/v20.0/oauth/access_token",
     );
     tokenUrl.searchParams.append("client_id", appId);
     tokenUrl.searchParams.append("client_secret", appSecret);
     tokenUrl.searchParams.append("code", code);
-    tokenUrl.searchParams.append("redirect_uri", ""); // Eksplisit string kosong
+    tokenUrl.searchParams.append("redirect_uri", redirectUri);
+
+    // Debug log (hanya di server, tidak exposed ke client)
+    console.log("[exchange-token]", {
+      appId: appId.substring(0, 6) + "...",
+      codeLen: code.length,
+      redirectUri: redirectUri || "(empty)",
+      tokenUrl: tokenUrl.toString().replace(appSecret, "***"),
+    });
 
     const res = await fetch(tokenUrl.toString(), {
       method: "GET",
