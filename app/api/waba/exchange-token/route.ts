@@ -15,15 +15,15 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
 
-    // Utamakan mengambil App Secret & App ID dari Environment Variable demi keamanan
     const appId = body.appId?.trim() || process.env.META_APP_ID;
     const appSecret = body.appSecret?.trim() || process.env.META_APP_SECRET;
     const code = body.code?.trim();
 
-    // Meta Embedded Signup (config_id): FB.login() mengembalikan code via JS callback,
-    // bukan HTTP redirect. Token exchange HARUS pakai redirect_uri="" (empty string),
-    // karena tidak ada redirect_uri di OAuth dialog. Kirim apa pun selain "" = error.
-    const redirectUri = "";
+    // Meta Embedded Signup (config_id): FB.login() JS SDK menggunakan
+    // URL halaman saat ini sebagai redirect_uri di OAuth dialog.
+    // Token exchange HARUS pakai redirect_uri yang SAMA PERSIS.
+    // Frontend mengirim redirectUri = window.location.href (tanpa query/hash).
+    const redirectUri = body.redirectUri?.trim() || "";
 
     if (!appId || !appSecret || !code) {
       return NextResponse.json(
@@ -41,12 +41,15 @@ export async function POST(request: Request) {
     tokenUrl.searchParams.append("client_id", appId);
     tokenUrl.searchParams.append("client_secret", appSecret);
     tokenUrl.searchParams.append("code", code);
-    tokenUrl.searchParams.append("redirect_uri", redirectUri);
+    if (redirectUri) {
+      tokenUrl.searchParams.append("redirect_uri", redirectUri);
+    }
 
-    // Debug log (hanya di server, tidak exposed ke client)
+    // Debug log
     console.log("[exchange-token]", {
       appId: appId.substring(0, 6) + "...",
       codeLen: code.length,
+      redirectUri: redirectUri || "(empty)",
       tokenUrl: tokenUrl.toString().replace(appSecret, "***"),
     });
 
@@ -57,7 +60,6 @@ export async function POST(request: Request) {
 
     const data = await res.json();
 
-    // Jika Meta mengembalikan respons error
     if (!res.ok || data.error) {
       return NextResponse.json(
         {
@@ -77,7 +79,6 @@ export async function POST(request: Request) {
       );
     }
 
-    // Berhasil mendapatkan access_token
     return NextResponse.json(data, {
       status: 200,
       headers: { "Access-Control-Allow-Origin": "*" },
