@@ -1,5 +1,16 @@
 import { NextResponse } from "next/server";
 
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 200,
+    headers: {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "POST, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type",
+    },
+  });
+}
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -8,7 +19,10 @@ export async function POST(request: Request) {
     if (!appId || !appSecret || !code) {
       return NextResponse.json(
         { error: { message: "appId, appSecret, dan code wajib diisi." } },
-        { status: 400 },
+        {
+          status: 400,
+          headers: { "Access-Control-Allow-Origin": "*" },
+        },
       );
     }
 
@@ -35,7 +49,9 @@ export async function POST(request: Request) {
       const data = await res.json();
 
       if (data.access_token) {
-        return NextResponse.json(data);
+        return NextResponse.json(data, {
+          headers: { "Access-Control-Allow-Origin": "*" },
+        });
       }
       lastData = data;
       if (
@@ -48,12 +64,18 @@ export async function POST(request: Request) {
 
     return NextResponse.json(
       lastData || { error: { message: "Gagal menukarkan token." } },
-      { status: 400 },
+      {
+        status: 400,
+        headers: { "Access-Control-Allow-Origin": "*" },
+      },
     );
   } catch (err: any) {
     return NextResponse.json(
       { error: { message: err.message || "Internal Server Error" } },
-      { status: 500 },
+      {
+        status: 500,
+        headers: { "Access-Control-Allow-Origin": "*" },
+      },
     );
   }
 }

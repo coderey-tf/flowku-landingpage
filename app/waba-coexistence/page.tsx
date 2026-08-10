@@ -309,9 +309,12 @@ export default function WabaCoexistencePage() {
     setStepLoading(2);
     addLog(
       "info",
-      "Menukarkan Authorization Code → Access Token via Next.js Server API Route...",
+      "Menukarkan Authorization Code → Access Token...",
     );
 
+    let data: any = null;
+
+    // Try Next.js Server API Route first
     try {
       const res = await fetch("/api/waba/exchange-token", {
         method: "POST",
@@ -324,48 +327,93 @@ export default function WabaCoexistencePage() {
         }),
       });
 
-      const data = await res.json();
-
-      if (data.access_token) {
-        setAccessToken(data.access_token);
-        setStepResults((prev) => ({
-          ...prev,
-          2: { success: true, data },
-        }));
-        addLog(
-          "success",
-          "✅ Access Token berhasil didapatkan via Server API!",
-          {
-            token_preview: data.access_token.substring(0, 30) + "...",
-          },
-        );
-        setCurrentStep(3);
-      } else {
-        const errorMsg = data.error?.message || JSON.stringify(data);
-        let friendlyMessage = errorMsg;
-
-        if (errorMsg.includes("Error validating verification code")) {
-          friendlyMessage = `${errorMsg}. \n💡 TIPS: Authorization Code Meta hanya bisa dipakai 1 KALI (single-use). Jika sebelumnya pernah diklik/gagal, mohon klik lagi tombol hijau 'Hubungkan WhatsApp Sebelas Decor' (Step 1) untuk mengambil Code baru, lalu klik Tukar Token kembali.`;
-        }
-
-        setStepResults((prev) => ({
-          ...prev,
-          2: {
-            success: false,
-            error: friendlyMessage,
-          },
-        }));
-        addLog("error", `Gagal mendapatkan Access Token: ${friendlyMessage}`, data);
+      const contentType = res.headers.get("content-type") || "";
+      if (contentType.includes("application/json")) {
+        data = await res.json();
       }
-    } catch (err: any) {
+    } catch (e) {
+      // API route not reachable, fallback below
+    }
+
+    // Fallback to direct Meta Graph API if Server API Route is not yet deployed on live server or didn't return JSON
+    if (!data || (!data.access_token && !data.error)) {
+      addLog(
+        "info",
+        "Server API Route belum merespon JSON, mencoba koneksi langsung ke Meta Graph API...",
+      );
+
+      const currentUrl =
+        typeof window !== "undefined"
+          ? window.location.href.split("?")[0].split("#")[0]
+          : "";
+      const originPath =
+        typeof window !== "undefined"
+          ? window.location.origin + window.location.pathname
+          : "";
+
+      const candidates = Array.from(
+        new Set([
+          redirectUri.trim(),
+          currentUrl,
+          originPath,
+          typeof window !== "undefined" ? window.location.origin : "",
+          "",
+          "https://www.facebook.com/connect/login_success.html",
+        ]),
+      ).filter((item) => item !== undefined);
+
+      for (const uri of candidates) {
+        try {
+          const uriParam = encodeURIComponent(uri);
+          const url = `https://graph.facebook.com/v20.0/oauth/access_token?client_id=${appId.trim()}&client_secret=${appSecret.trim()}&code=${authCode.trim()}${
+            uri !== "" ? `&redirect_uri=${uriParam}` : ""
+          }`;
+
+          const res = await fetch(url);
+          const metaData = await res.json();
+
+          if (metaData.access_token || metaData.error) {
+            data = metaData;
+            if (metaData.access_token) break;
+          }
+        } catch (err: any) {
+          // Continue trying
+        }
+      }
+    }
+
+    if (data && data.access_token) {
+      setAccessToken(data.access_token);
       setStepResults((prev) => ({
         ...prev,
-        2: { success: false, error: err.message },
+        2: { success: true, data },
       }));
-      addLog("error", `Network error saat exchange token: ${err.message}`);
-    } finally {
-      setStepLoading(null);
+      addLog(
+        "success",
+        "✅ Access Token berhasil didapatkan!",
+        {
+          token_preview: data.access_token.substring(0, 30) + "...",
+        },
+      );
+      setCurrentStep(3);
+    } else {
+      const errorMsg = data?.error?.message || "Gagal menghubungi server Meta API.";
+      let friendlyMessage = errorMsg;
+
+      if (errorMsg.includes("Error validating verification code")) {
+        friendlyMessage = `${errorMsg}. \n💡 TIPS: Authorization Code Meta hanya bisa dipakai 1 KALI (single-use). Jika sebelumnya pernah diklik/gagal, mohon klik lagi tombol hijau 'Hubungkan WhatsApp Sebelas Decor' (Step 1) untuk mengambil Code baru, lalu klik Tukar Token kembali.`;
+      }
+
+      setStepResults((prev) => ({
+        ...prev,
+        2: {
+          success: false,
+          error: friendlyMessage,
+        },
+      }));
+      addLog("error", `Gagal mendapatkan Access Token: ${friendlyMessage}`, data);
     }
+    setStepLoading(null);
   };
 
   // Step 3: Subscribe WABA to App
