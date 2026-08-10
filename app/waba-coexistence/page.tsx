@@ -314,7 +314,7 @@ export default function WabaCoexistencePage() {
 
     let data: any = null;
 
-    // Try Next.js Server API Route first
+    // First try Next.js Server API Route
     try {
       const res = await fetch("/api/waba/exchange-token", {
         method: "POST",
@@ -332,57 +332,22 @@ export default function WabaCoexistencePage() {
         data = await res.json();
       }
     } catch (e) {
-      // API route not reachable, fallback below
+      // API route not reachable
     }
 
-    // Fallback to direct Meta Graph API if Server API Route is not yet deployed on live server or didn't return JSON
+    // Direct fetch to Meta Graph API if Server API route was unavailable or returned non-JSON
     if (!data || (!data.access_token && !data.error)) {
-      addLog(
-        "info",
-        "Mencoba koneksi langsung ke Meta Graph API...",
-      );
+      try {
+        const uriParam = redirectUri.trim() ? encodeURIComponent(redirectUri.trim()) : "";
+        const url = `https://graph.facebook.com/v20.0/oauth/access_token?client_id=${appId.trim()}&client_secret=${appSecret.trim()}&code=${authCode.trim()}${
+          uriParam ? `&redirect_uri=${uriParam}` : ""
+        }`;
 
-      const currentUrl =
-        typeof window !== "undefined"
-          ? window.location.href.split("?")[0].split("#")[0].replace(/\/+$/, "")
-          : "";
-      const originPath =
-        typeof window !== "undefined"
-          ? (window.location.origin + window.location.pathname).replace(/\/+$/, "")
-          : "";
-
-      const rawUri = redirectUri.trim();
-      const cleanUri = rawUri.replace(/\/+$/, "");
-
-      const candidates = Array.from(
-        new Set([
-          "", // Omit redirect_uri (Standard for WABA JS SDK Embedded Signup)
-          cleanUri,
-          currentUrl,
-          originPath,
-          rawUri,
-          "https://flowku.my.id/waba-coexistence",
-          "http://localhost:3000/waba-coexistence",
-        ]),
-      ).filter((item) => item !== undefined);
-
-      for (const uri of candidates) {
-        try {
-          const uriParam = encodeURIComponent(uri);
-          const url = `https://graph.facebook.com/v20.0/oauth/access_token?client_id=${appId.trim()}&client_secret=${appSecret.trim()}&code=${authCode.trim()}${
-            uri !== "" ? `&redirect_uri=${uriParam}` : ""
-          }`;
-
-          const res = await fetch(url);
-          const metaData = await res.json();
-
-          if (metaData.access_token || metaData.error) {
-            data = metaData;
-            if (metaData.access_token) break;
-          }
-        } catch (err: any) {
-          // Continue trying
-        }
+        addLog("info", `Request ke Meta Graph API (redirect_uri: "${redirectUri.trim()}")`);
+        const res = await fetch(url);
+        data = await res.json();
+      } catch (err: any) {
+        data = { error: { message: err.message } };
       }
     }
 
@@ -401,11 +366,11 @@ export default function WabaCoexistencePage() {
       );
       setCurrentStep(3);
     } else {
-      const errorMsg = data?.error?.message || "Gagal menghubungi server Meta API.";
+      const errorMsg = data?.error?.message || "Gagal mendapatkan token dari Meta.";
       let friendlyMessage = errorMsg;
 
       if (errorMsg.includes("Error validating verification code")) {
-        friendlyMessage = `${errorMsg}. \n💡 TIPS: Authorization Code Meta hanya bisa dipakai 1 KALI (single-use). Jika sebelumnya pernah diklik/gagal, mohon klik lagi tombol hijau 'Hubungkan WhatsApp Sebelas Decor' (Step 1) untuk mengambil Code baru, lalu klik Tukar Token kembali.`;
+        friendlyMessage = `${errorMsg}\n\n💡 TIPS: Authorization Code Meta hanya berlaku 1 KALI (single-use). Jika percobaannya gagal, mohon lakukan langkah berikut:\n1. Klik lagi tombol hijau 'Hubungkan WhatsApp Sebelas Decor' (Step 1) untuk mendapatkan Authorization Code BARU.\n2. Klik tombol kuning 'Tukar Token' kembali.`;
       }
 
       setStepResults((prev) => ({

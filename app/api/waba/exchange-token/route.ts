@@ -26,52 +26,18 @@ export async function POST(request: Request) {
       );
     }
 
-    const rawUri = (redirectUri || "").trim();
-    const cleanUri = rawUri.replace(/\/+$/, "");
+    const uriParam = redirectUri ? encodeURIComponent(redirectUri.trim()) : "";
+    const url = `https://graph.facebook.com/v20.0/oauth/access_token?client_id=${appId.trim()}&client_secret=${appSecret.trim()}&code=${code.trim()}${
+      uriParam ? `&redirect_uri=${uriParam}` : ""
+    }`;
 
-    // For Meta Embedded Signup JS SDK, omitting redirect_uri ("") is standard, followed by clean URIs without trailing slash
-    const candidates = Array.from(
-      new Set([
-        "", // Try without redirect_uri first (Standard for WABA JS SDK Embedded Signup)
-        cleanUri,
-        rawUri,
-        "https://flowku.my.id/waba-coexistence",
-        "http://localhost:3000/waba-coexistence",
-      ]),
-    );
+    const res = await fetch(url, { method: "GET" });
+    const data = await res.json();
 
-    let lastData: any = null;
-
-    for (const uri of candidates) {
-      const uriParam = encodeURIComponent(uri);
-      const url = `https://graph.facebook.com/v20.0/oauth/access_token?client_id=${appId.trim()}&client_secret=${appSecret.trim()}&code=${code.trim()}${
-        uri !== "" ? `&redirect_uri=${uriParam}` : ""
-      }`;
-
-      const res = await fetch(url, { method: "GET" });
-      const data = await res.json();
-
-      if (data.access_token) {
-        return NextResponse.json(data, {
-          headers: { "Access-Control-Allow-Origin": "*" },
-        });
-      }
-      lastData = data;
-      if (
-        data.error?.message?.includes("has already been used") ||
-        data.error?.message?.includes("expired")
-      ) {
-        break;
-      }
-    }
-
-    return NextResponse.json(
-      lastData || { error: { message: "Gagal menukarkan token." } },
-      {
-        status: 400,
-        headers: { "Access-Control-Allow-Origin": "*" },
-      },
-    );
+    return NextResponse.json(data, {
+      status: res.ok ? 200 : 400,
+      headers: { "Access-Control-Allow-Origin": "*" },
+    });
   } catch (err: any) {
     return NextResponse.json(
       { error: { message: err.message || "Internal Server Error" } },
