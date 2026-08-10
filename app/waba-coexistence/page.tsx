@@ -248,15 +248,29 @@ export default function WabaCoexistencePage() {
       function (response: any) {
         setIsLoggingIn(false);
         if (response && response.authResponse) {
-          const code = response.authResponse.code;
-          setAuthCode(code);
-          // Clear previous step 2 error if any
-          setStepResults((prev) => ({ ...prev, 2: { success: false } }));
-          addLog("success", "✅ Authorization Code baru diterima!", { code });
-          console.log("✅ Authorization Code Diterima:", code);
+          // NEW FLOW: ambil accessToken langsung, tanpa code exchange
+          // Hapus response_type: 'code' → SDK default return accessToken
+          const token = response.authResponse.accessToken;
+          if (!token) {
+            addLog("error", "AccessToken tidak tersedia dari response FB.login.");
+            console.log("FB.login response tanpa accessToken:", response);
+            return;
+          }
+          setAuthCode(null); // code tidak diperlukan lagi
+          setAccessToken(token);
+          // Mark Step 1 & Step 2 sebagai success (sudah punya token)
+          setStepResults((prev) => ({
+            ...prev,
+            2: { success: true, data: { access_token: token, source: "FB.login direct" } },
+          }));
+          addLog("success", "✅ AccessToken diterima langsung dari FB.login! Skip code exchange.", {
+            token_preview: token.substring(0, 30) + "...",
+          });
+          console.log("✅ AccessToken Diterima:", token);
+          setCurrentStep(3);
           setShowNextSteps(true);
           alert(
-            "Login Berhasil!\nAuthorization Code baru berhasil didapatkan. Lanjutkan ke Step 2 (Tukar Token).",
+            "Login Berhasil!\nAccess Token berhasil didapatkan langsung (tanpa perlu Tukar Token). Lanjutkan ke Step 3.",
           );
         } else {
           addLog(
@@ -268,8 +282,6 @@ export default function WabaCoexistencePage() {
       },
       {
         config_id: configId.trim(),
-        response_type: "code",
-        override_default_response_type: true,
         extras: {
           setup: {},
         },
@@ -289,8 +301,15 @@ export default function WabaCoexistencePage() {
   const effectivePhoneId = wabaData?.phone_number_id || manualPhoneId.trim();
   const effectiveToken = accessToken || manualAccessToken.trim();
 
-  // Step 2: Exchange Authorization Code for Access Token
+  // Step 2: Exchange Authorization Code for Access Token (legacy) OR direct use
   const exchangeCodeForToken = async () => {
+    // NEW FLOW: jika sudah ada accessToken dari FB.login direct, skip exchange
+    if (accessToken) {
+      addLog("info", "AccessToken sudah ada dari Step 1, skip exchange.");
+      setCurrentStep(3);
+      return;
+    }
+
     if (!authCode) {
       addLog(
         "error",
