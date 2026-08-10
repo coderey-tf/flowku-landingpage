@@ -335,17 +335,24 @@ export default function WabaCoexistencePage() {
       // API route not reachable
     }
 
-    // Direct fetch to Meta Graph API if Server API route was unavailable or returned non-JSON
+    // Direct fetch to Meta Graph API if Server API route was unavailable or returned 405/non-JSON
     if (!data || (!data.access_token && !data.error)) {
+      // For Meta Embedded Signup JS SDK (config_id), redirect_uri MUST NOT be sent in Graph API request
+      const urlWithoutRedirect = `https://graph.facebook.com/v20.0/oauth/access_token?client_id=${appId.trim()}&client_secret=${appSecret.trim()}&code=${authCode.trim()}`;
+      
+      addLog("info", "Request ke Meta Graph API (Embedded Signup mode - tanpa redirect_uri)...");
       try {
-        const uriParam = redirectUri.trim() ? encodeURIComponent(redirectUri.trim()) : "";
-        const url = `https://graph.facebook.com/v20.0/oauth/access_token?client_id=${appId.trim()}&client_secret=${appSecret.trim()}&code=${authCode.trim()}${
-          uriParam ? `&redirect_uri=${uriParam}` : ""
-        }`;
-
-        addLog("info", `Request ke Meta Graph API (redirect_uri: "${redirectUri.trim()}")`);
-        const res = await fetch(url);
+        const res = await fetch(urlWithoutRedirect);
         data = await res.json();
+
+        // If no-redirect fails, try with redirect_uri as secondary fallback
+        if (!data.access_token && data.error && redirectUri.trim()) {
+          const urlWithRedirect = `${urlWithoutRedirect}&redirect_uri=${encodeURIComponent(redirectUri.trim())}`;
+          addLog("info", `Retrying dengan redirect_uri: "${redirectUri.trim()}"`);
+          const res2 = await fetch(urlWithRedirect);
+          const data2 = await res2.json();
+          if (data2.access_token) data = data2;
+        }
       } catch (err: any) {
         data = { error: { message: err.message } };
       }

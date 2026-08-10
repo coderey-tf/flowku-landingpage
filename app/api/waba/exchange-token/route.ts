@@ -26,18 +26,36 @@ export async function POST(request: Request) {
       );
     }
 
-    const uriParam = redirectUri ? encodeURIComponent(redirectUri.trim()) : "";
-    const url = `https://graph.facebook.com/v20.0/oauth/access_token?client_id=${appId.trim()}&client_secret=${appSecret.trim()}&code=${code.trim()}${
-      uriParam ? `&redirect_uri=${uriParam}` : ""
-    }`;
+    // Try without redirect_uri first (Standard Meta Graph API spec for Embedded Signup JS SDK)
+    const urlNoRedirect = `https://graph.facebook.com/v20.0/oauth/access_token?client_id=${appId.trim()}&client_secret=${appSecret.trim()}&code=${code.trim()}`;
+    let res = await fetch(urlNoRedirect, { method: "GET" });
+    let data = await res.json();
 
-    const res = await fetch(url, { method: "GET" });
-    const data = await res.json();
+    if (data.access_token) {
+      return NextResponse.json(data, {
+        headers: { "Access-Control-Allow-Origin": "* text/plain" },
+      });
+    }
 
-    return NextResponse.json(data, {
-      status: res.ok ? 200 : 400,
-      headers: { "Access-Control-Allow-Origin": "*" },
-    });
+    // Secondary attempt with redirectUri if provided
+    if (redirectUri && redirectUri.trim()) {
+      const urlWithRedirect = `${urlNoRedirect}&redirect_uri=${encodeURIComponent(redirectUri.trim())}`;
+      res = await fetch(urlWithRedirect, { method: "GET" });
+      const dataWithRedirect = await res.json();
+      if (dataWithRedirect.access_token) {
+        return NextResponse.json(dataWithRedirect, {
+          headers: { "Access-Control-Allow-Origin": "*" },
+        });
+      }
+    }
+
+    return NextResponse.json(
+      data || { error: { message: "Gagal menukarkan token." } },
+      {
+        status: 400,
+        headers: { "Access-Control-Allow-Origin": "*" },
+      },
+    );
   } catch (err: any) {
     return NextResponse.json(
       { error: { message: err.message || "Internal Server Error" } },
