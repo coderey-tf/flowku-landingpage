@@ -120,14 +120,14 @@ export default function WabaCoexistencePage() {
           appId: appId.trim(),
           cookie: true,
           xfbml: true,
-          version: "v20.0",
+          version: "v26.0",
         });
 
         window.FB.AppEvents?.logPageView();
         setSdkReady(true);
         addLog(
           "info",
-          `Meta SDK v20.0 initialized successfully (App ID: ${appId})`,
+          `Meta SDK v26.0 initialized successfully (App ID: ${appId})`,
         );
 
         // Check login status as per Meta Developer Guide
@@ -270,6 +270,9 @@ export default function WabaCoexistencePage() {
         config_id: configId.trim(),
         response_type: "code",
         override_default_response_type: true,
+        extras: {
+          setup: {},
+        },
       },
     );
   };

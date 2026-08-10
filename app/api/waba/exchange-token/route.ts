@@ -36,7 +36,7 @@ export async function POST(request: Request) {
     }
 
     const tokenUrl = new URL(
-      "https://graph.facebook.com/v20.0/oauth/access_token",
+      "https://graph.facebook.com/v26.0/oauth/access_token",
     );
     tokenUrl.searchParams.append("client_id", appId);
     tokenUrl.searchParams.append("client_secret", appSecret);
