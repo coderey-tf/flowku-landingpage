@@ -26,14 +26,17 @@ export async function POST(request: Request) {
       );
     }
 
-    const currentUrl = redirectUri || "https://flowku.my.id/waba-coexistence";
+    const rawUri = (redirectUri || "").trim();
+    const cleanUri = rawUri.replace(/\/+$/, "");
+
+    // For Meta Embedded Signup JS SDK, omitting redirect_uri ("") is standard, followed by clean URIs without trailing slash
     const candidates = Array.from(
       new Set([
-        currentUrl,
-        currentUrl.endsWith("/") ? currentUrl.slice(0, -1) : `${currentUrl}/`,
+        "", // Try without redirect_uri first (Standard for WABA JS SDK Embedded Signup)
+        cleanUri,
+        rawUri,
         "https://flowku.my.id/waba-coexistence",
         "http://localhost:3000/waba-coexistence",
-        "",
       ]),
     );
 

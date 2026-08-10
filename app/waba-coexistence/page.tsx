@@ -81,10 +81,10 @@ export default function WabaCoexistencePage() {
   const [manualPhoneId, setManualPhoneId] = useState("");
   const [manualAccessToken, setManualAccessToken] = useState("");
 
-  // Set default redirectUri on mount
+  // Set default redirectUri on mount (without trailing slash)
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const currentUrl = window.location.href.split("?")[0].split("#")[0];
+      const currentUrl = window.location.href.split("?")[0].split("#")[0].replace(/\/+$/, "");
       setRedirectUri(currentUrl);
     }
   }, []);
@@ -339,26 +339,30 @@ export default function WabaCoexistencePage() {
     if (!data || (!data.access_token && !data.error)) {
       addLog(
         "info",
-        "Server API Route belum merespon JSON, mencoba koneksi langsung ke Meta Graph API...",
+        "Mencoba koneksi langsung ke Meta Graph API...",
       );
 
       const currentUrl =
         typeof window !== "undefined"
-          ? window.location.href.split("?")[0].split("#")[0]
+          ? window.location.href.split("?")[0].split("#")[0].replace(/\/+$/, "")
           : "";
       const originPath =
         typeof window !== "undefined"
-          ? window.location.origin + window.location.pathname
+          ? (window.location.origin + window.location.pathname).replace(/\/+$/, "")
           : "";
+
+      const rawUri = redirectUri.trim();
+      const cleanUri = rawUri.replace(/\/+$/, "");
 
       const candidates = Array.from(
         new Set([
-          redirectUri.trim(),
+          "", // Omit redirect_uri (Standard for WABA JS SDK Embedded Signup)
+          cleanUri,
           currentUrl,
           originPath,
-          typeof window !== "undefined" ? window.location.origin : "",
-          "",
-          "https://www.facebook.com/connect/login_success.html",
+          rawUri,
+          "https://flowku.my.id/waba-coexistence",
+          "http://localhost:3000/waba-coexistence",
         ]),
       ).filter((item) => item !== undefined);
 
