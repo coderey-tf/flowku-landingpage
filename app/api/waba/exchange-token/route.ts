@@ -19,9 +19,11 @@ export async function POST(request: Request) {
     const appId = body.appId?.trim() || process.env.META_APP_ID;
     const appSecret = body.appSecret?.trim() || process.env.META_APP_SECRET;
     const code = body.code?.trim();
-    // redirect_uri harus identik dengan yang dikirim FB.login() via config_id.
-    // Frontend mengirim redirectUri (halaman saat ini), fallback ke empty string.
-    const redirectUri = body.redirectUri?.trim() || "";
+
+    // Meta Embedded Signup (config_id): FB.login() mengembalikan code via JS callback,
+    // bukan HTTP redirect. Token exchange HARUS pakai redirect_uri="" (empty string),
+    // karena tidak ada redirect_uri di OAuth dialog. Kirim apa pun selain "" = error.
+    const redirectUri = "";
 
     if (!appId || !appSecret || !code) {
       return NextResponse.json(
@@ -45,7 +47,6 @@ export async function POST(request: Request) {
     console.log("[exchange-token]", {
       appId: appId.substring(0, 6) + "...",
       codeLen: code.length,
-      redirectUri: redirectUri || "(empty)",
       tokenUrl: tokenUrl.toString().replace(appSecret, "***"),
     });
 
