@@ -28,6 +28,7 @@ import {
   ChevronDown,
   ChevronUp,
   Loader2,
+  Link2,
 } from "lucide-react";
 
 declare global {
@@ -64,6 +65,7 @@ export default function WabaCoexistencePage() {
   // Next Steps state
   const [appSecret, setAppSecret] = useState("");
   const [showSecret, setShowSecret] = useState(false);
+  const [redirectUri, setRedirectUri] = useState("");
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [currentStep, setCurrentStep] = useState(2);
   const [stepLoading, setStepLoading] = useState<number | null>(null);
@@ -78,6 +80,14 @@ export default function WabaCoexistencePage() {
   const [manualWabaId, setManualWabaId] = useState("");
   const [manualPhoneId, setManualPhoneId] = useState("");
   const [manualAccessToken, setManualAccessToken] = useState("");
+
+  // Set default redirectUri on mount
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const currentUrl = window.location.href.split("?")[0].split("#")[0];
+      setRedirectUri(currentUrl);
+    }
+  }, []);
 
   const addLog = useCallback(
     (type: LogEntry["type"], message: string, details?: any) => {
@@ -240,11 +250,13 @@ export default function WabaCoexistencePage() {
         if (response && response.authResponse) {
           const code = response.authResponse.code;
           setAuthCode(code);
-          addLog("success", "✅ Authorization Code diterima!", { code });
+          // Clear previous step 2 error if any
+          setStepResults((prev) => ({ ...prev, 2: { success: false } }));
+          addLog("success", "✅ Authorization Code baru diterima!", { code });
           console.log("✅ Authorization Code Diterima:", code);
           setShowNextSteps(true);
           alert(
-            "Login Berhasil!\nAuthorization Code berhasil didapatkan. Lanjutkan ke Step 2 (Token Exchange).",
+            "Login Berhasil!\nAuthorization Code baru berhasil didapatkan. Lanjutkan ke Step 2 (Tukar Token).",
           );
         } else {
           addLog(
@@ -281,6 +293,9 @@ export default function WabaCoexistencePage() {
         "error",
         "Authorization Code belum tersedia. Selesaikan Step 1 terlebih dahulu.",
       );
+      alert(
+        "Authorization Code belum ada. Klik tombol hijau 'Hubungkan WhatsApp Sebelas Decor' terlebih dahulu.",
+      );
       return;
     }
     if (!appSecret.trim()) {
@@ -297,41 +312,87 @@ export default function WabaCoexistencePage() {
       "Menukarkan Authorization Code → Access Token via Meta Graph API...",
     );
 
-    try {
-      const url = `https://graph.facebook.com/v20.0/oauth/access_token?client_id=${appId.trim()}&client_secret=${appSecret.trim()}&code=${authCode}`;
-      const res = await fetch(url);
-      const data = await res.json();
+    const currentUrl =
+      typeof window !== "undefined"
+        ? window.location.href.split("?")[0].split("#")[0]
+        : "";
+    const originPath =
+      typeof window !== "undefined"
+        ? window.location.origin + window.location.pathname
+        : "";
 
-      if (data.access_token) {
-        setAccessToken(data.access_token);
-        setStepResults((prev) => ({ ...prev, 2: { success: true, data } }));
-        addLog("success", "✅ Access Token berhasil didapatkan!", {
-          token_preview: data.access_token.substring(0, 30) + "...",
-        });
-        setCurrentStep(3);
-      } else {
-        setStepResults((prev) => ({
-          ...prev,
-          2: {
-            success: false,
-            error: data.error?.message || JSON.stringify(data),
-          },
-        }));
+    // Candidate redirect_uris to test against Meta's strict verification
+    const candidates = Array.from(
+      new Set([
+        redirectUri.trim(),
+        currentUrl,
+        originPath,
+        typeof window !== "undefined" ? window.location.origin : "",
+        "",
+        "https://www.facebook.com/connect/login_success.html",
+      ]),
+    ).filter((item) => item !== undefined);
+
+    let lastError = "";
+    let successData: any = null;
+
+    for (const uri of candidates) {
+      try {
+        const uriParam = encodeURIComponent(uri);
+        const url = `https://graph.facebook.com/v20.0/oauth/access_token?client_id=${appId.trim()}&client_secret=${appSecret.trim()}&code=${authCode}${
+          uri !== "" ? `&redirect_uri=${uriParam}` : ""
+        }`;
+
         addLog(
-          "error",
-          `Gagal mendapatkan Access Token: ${data.error?.message || "Unknown error"}`,
-          data,
+          "info",
+          `Mencoba exchange token dengan redirect_uri: "${uri || "(tanpa parameter)"}"`,
         );
+        const res = await fetch(url);
+        const data = await res.json();
+
+        if (data.access_token) {
+          successData = data;
+          break;
+        } else {
+          lastError = data.error?.message || JSON.stringify(data);
+          // If code was already used or expired, stop looping needlessly
+          if (
+            lastError.includes("has already been used") ||
+            lastError.includes("expired")
+          ) {
+            break;
+          }
+        }
+      } catch (err: any) {
+        lastError = err.message;
       }
-    } catch (err: any) {
+    }
+
+    if (successData && successData.access_token) {
+      setAccessToken(successData.access_token);
       setStepResults((prev) => ({
         ...prev,
-        2: { success: false, error: err.message },
+        2: { success: true, data: successData },
       }));
-      addLog("error", `Network error saat exchange token: ${err.message}`);
-    } finally {
-      setStepLoading(null);
+      addLog("success", "✅ Access Token berhasil didapatkan!", {
+        token_preview: successData.access_token.substring(0, 30) + "...",
+      });
+      setCurrentStep(3);
+    } else {
+      let friendlyMessage = lastError;
+      if (lastError.includes("Error validating verification code")) {
+        friendlyMessage = `${lastError}. \n💡 TIPS: Authorization Code Meta hanya bisa dipakai 1 KALI (single-use). Jika sebelumnya sudah pernah diklik atau gagal, mohon klik lagi tombol hijau 'Hubungkan WhatsApp Sebelas Decor' (Step 1) untuk mengambil Authorization Code baru, lalu klik Tukar Token kembali.`;
+      }
+      setStepResults((prev) => ({
+        ...prev,
+        2: {
+          success: false,
+          error: friendlyMessage,
+        },
+      }));
+      addLog("error", `Gagal mendapatkan Access Token: ${friendlyMessage}`);
     }
+    setStepLoading(null);
   };
 
   // Step 3: Subscribe WABA to App
@@ -1330,20 +1391,27 @@ export default function WabaCoexistencePage() {
                       gap: 12,
                     }}
                   >
-                    <div>
-                      <label
-                        style={{
-                          display: "block",
-                          fontSize: 12,
-                          color: "var(--text-muted)",
-                          marginBottom: 4,
-                          fontWeight: 600,
-                        }}
-                      >
-                        App Secret Meta <span style={{ color: "#FF6584" }}>*</span>
-                      </label>
-                      <div style={{ display: "flex", gap: 8 }}>
-                        <div style={{ flex: 1, position: "relative" }}>
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns:
+                          "repeat(auto-fit, minmax(240px, 1fr))",
+                        gap: 12,
+                      }}
+                    >
+                      <div>
+                        <label
+                          style={{
+                            display: "block",
+                            fontSize: 12,
+                            color: "var(--text-muted)",
+                            marginBottom: 4,
+                            fontWeight: 600,
+                          }}
+                        >
+                          App Secret Meta <span style={{ color: "#FF6584" }}>*</span>
+                        </label>
+                        <div style={{ position: "relative" }}>
                           <input
                             type={showSecret ? "text" : "password"}
                             value={appSecret}
@@ -1382,35 +1450,70 @@ export default function WabaCoexistencePage() {
                             )}
                           </button>
                         </div>
-                        <button
-                          onClick={exchangeCodeForToken}
-                          disabled={stepLoading === 2 || !authCode}
+                      </div>
+
+                      <div>
+                        <label
                           style={{
-                            background:
-                              "linear-gradient(135deg, #FFD166 0%, #E6A800 100%)",
-                            color: "#1a1a1a",
-                            border: "none",
-                            padding: "10px 20px",
-                            borderRadius: 8,
-                            fontWeight: 700,
-                            fontSize: 13,
-                            cursor: stepLoading === 2 ? "wait" : "pointer",
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 6,
-                            opacity: stepLoading === 2 || !authCode ? 0.5 : 1,
-                            whiteSpace: "nowrap",
+                            display: "block",
+                            fontSize: 12,
+                            color: "var(--text-muted)",
+                            marginBottom: 4,
+                            fontWeight: 600,
                           }}
                         >
-                          {stepLoading === 2 ? (
-                            <Loader2 size={14} className="spin" />
-                          ) : (
-                            <ArrowRight size={14} />
-                          )}
-                          Tukar Token
-                        </button>
+                          Redirect URI (Otomatis)
+                        </label>
+                        <div style={{ position: "relative" }}>
+                          <input
+                            type="text"
+                            value={redirectUri}
+                            onChange={(e) => setRedirectUri(e.target.value)}
+                            placeholder="e.g. https://flowku.my.id/waba-coexistence"
+                            style={{
+                              width: "100%",
+                              background: "rgba(0,0,0,0.3)",
+                              border: "1px solid rgba(255,255,255,0.15)",
+                              color: "var(--brand-primary-light)",
+                              padding: "10px 14px",
+                              borderRadius: 8,
+                              fontFamily: "monospace",
+                              fontSize: 12,
+                              outline: "none",
+                            }}
+                          />
+                        </div>
                       </div>
                     </div>
+
+                    <button
+                      onClick={exchangeCodeForToken}
+                      disabled={stepLoading === 2 || !authCode}
+                      style={{
+                        background:
+                          "linear-gradient(135deg, #FFD166 0%, #E6A800 100%)",
+                        color: "#1a1a1a",
+                        border: "none",
+                        padding: "12px 24px",
+                        borderRadius: 10,
+                        fontWeight: 700,
+                        fontSize: 14,
+                        cursor: stepLoading === 2 ? "wait" : "pointer",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 8,
+                        alignSelf: "flex-start",
+                        opacity: stepLoading === 2 || !authCode ? 0.5 : 1,
+                        boxShadow: "0 4px 16px rgba(255, 209, 102, 0.3)",
+                      }}
+                    >
+                      {stepLoading === 2 ? (
+                        <Loader2 size={16} className="spin" />
+                      ) : (
+                        <ArrowRight size={16} />
+                      )}
+                      Tukar Token
+                    </button>
 
                     {/* Display access token result */}
                     {accessToken && (
@@ -2197,6 +2300,7 @@ function StepCard({
             fontSize: 12,
             color: "#FF6584",
             fontFamily: "monospace",
+            whiteSpace: "pre-wrap",
             wordBreak: "break-all",
           }}
         >
