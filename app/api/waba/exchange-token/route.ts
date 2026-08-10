@@ -19,13 +19,16 @@ export async function POST(request: Request) {
     const appSecret = body.appSecret?.trim() || process.env.META_APP_SECRET;
     const code = body.code?.trim();
 
-    // Meta Embedded Signup (config_id): Dari debug popup URL user:
-    // redirect_uri=https://staticxx.facebook.com/x/connect/xd_arbiter/...
-    // fallback_redirect_uri=https://flowku.my.id/waba-coexistence
-    // Artinya SDK pakai channel_url internal (xd_arbiter) sebagai redirect_uri.
-    // Kalau kita kirim fallback_redirect_uri ke /oauth/access_token → mismatch → 36008.
-    // Solusi: JANGAN kirim redirect_uri untuk Embedded Signup JS SDK flow.
-    const _redirectUriDebug = body.redirectUri?.trim() || "(none-sent)";
+    // Meta Embedded Signup (config_id) — analisis dari URL popup user:
+    // OAuth dialog:
+    //   redirect_uri=https://staticxx.facebook.com/x/connect/xd_arbiter/?version...
+    //   fallback_redirect_uri=https://flowku.my.id/waba-coexistence
+    // SDK pakai xd_arbiter internal sebagai redirect_uri.
+    // Dari log: tanpa redirect_uri tetap kena 36008.
+    // Solusi: kirim fallback_redirect_uri (page URL) sebagai redirect_uri.
+    // Ini yang dipraktekkan banyak implementasi Embedded Signup.
+    const redirectUri =
+      body.redirectUri?.trim() || "https://flowku.my.id/waba-coexistence";
 
     if (!appId || !appSecret || !code) {
       return NextResponse.json(
@@ -43,16 +46,15 @@ export async function POST(request: Request) {
     tokenUrl.searchParams.append("client_id", appId);
     tokenUrl.searchParams.append("client_secret", appSecret);
     tokenUrl.searchParams.append("code", code);
-    // JANGAN kirim redirect_uri — biarkan Meta pakai channel_url internal.
-    // Kalau tetap error, fallback akan coba kirim fallback_redirect_uri.
-    // tokenUrl.searchParams.append("redirect_uri", ...) dihapus sengaja.
+    // Kirim fallback_redirect_uri yang ada di popup OAuth sebagai redirect_uri
+    tokenUrl.searchParams.append("redirect_uri", redirectUri);
 
     // Debug log
     console.log("[exchange-token]", {
       appId: appId.substring(0, 6) + "...",
       codeLen: code.length,
-      frontendRedirectUri: _redirectUriDebug,
-      strategy: "no-redirect_uri (xd_arbiter flow)",
+      redirectUri,
+      strategy: "fallback_redirect_uri as redirect_uri",
       tokenUrl: tokenUrl.toString().replace(appSecret, "***"),
     });
 
