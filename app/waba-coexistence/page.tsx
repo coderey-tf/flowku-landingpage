@@ -382,6 +382,8 @@ export default function WabaCoexistencePage() {
       let friendlyMessage = lastError;
       if (lastError.includes("Error validating verification code")) {
         friendlyMessage = `${lastError}. \n💡 TIPS: Authorization Code Meta hanya bisa dipakai 1 KALI (single-use). Jika sebelumnya sudah pernah diklik atau gagal, mohon klik lagi tombol hijau 'Hubungkan WhatsApp Sebelas Decor' (Step 1) untuk mengambil Authorization Code baru, lalu klik Tukar Token kembali.`;
+      } else if (lastError.includes("Domain dari URL ini tidak termasuk") || lastError.includes("domain dari URL ini")) {
+        friendlyMessage = `${lastError}. \n💡 SOLUSI: Buka Meta Dashboard ➔ Pengaturan aplikasi ➔ Dasar ➔ Masukkan "flowku.my.id" pada kolom "Domain Aplikasi", lalu klik "Simpan Perubahan".`;
       }
       setStepResults((prev) => ({
         ...prev,
