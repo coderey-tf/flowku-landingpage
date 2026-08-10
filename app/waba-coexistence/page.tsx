@@ -47,8 +47,8 @@ interface LogEntry {
 }
 
 export default function WabaCoexistencePage() {
-  const [appId, setAppId] = useState("1061127523554734");
-  const [configId, setConfigId] = useState("1552212973350194");
+  const [appId, setAppId] = useState("1030528599982411");
+  const [configId, setConfigId] = useState("2718638098533653");
   const [sdkReady, setSdkReady] = useState(false);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
