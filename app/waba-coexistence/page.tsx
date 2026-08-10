@@ -309,92 +309,63 @@ export default function WabaCoexistencePage() {
     setStepLoading(2);
     addLog(
       "info",
-      "Menukarkan Authorization Code → Access Token via Meta Graph API...",
+      "Menukarkan Authorization Code → Access Token via Next.js Server API Route...",
     );
 
-    const currentUrl =
-      typeof window !== "undefined"
-        ? window.location.href.split("?")[0].split("#")[0]
-        : "";
-    const originPath =
-      typeof window !== "undefined"
-        ? window.location.origin + window.location.pathname
-        : "";
-
-    // Candidate redirect_uris to test against Meta's strict verification
-    const candidates = Array.from(
-      new Set([
-        redirectUri.trim(),
-        currentUrl,
-        originPath,
-        typeof window !== "undefined" ? window.location.origin : "",
-        "",
-        "https://www.facebook.com/connect/login_success.html",
-      ]),
-    ).filter((item) => item !== undefined);
-
-    let lastError = "";
-    let successData: any = null;
-
-    for (const uri of candidates) {
-      try {
-        const uriParam = encodeURIComponent(uri);
-        const url = `https://graph.facebook.com/v20.0/oauth/access_token?client_id=${appId.trim()}&client_secret=${appSecret.trim()}&code=${authCode}${
-          uri !== "" ? `&redirect_uri=${uriParam}` : ""
-        }`;
-
-        addLog(
-          "info",
-          `Mencoba exchange token dengan redirect_uri: "${uri || "(tanpa parameter)"}"`,
-        );
-        const res = await fetch(url);
-        const data = await res.json();
-
-        if (data.access_token) {
-          successData = data;
-          break;
-        } else {
-          lastError = data.error?.message || JSON.stringify(data);
-          // If code was already used or expired, stop looping needlessly
-          if (
-            lastError.includes("has already been used") ||
-            lastError.includes("expired")
-          ) {
-            break;
-          }
-        }
-      } catch (err: any) {
-        lastError = err.message;
-      }
-    }
-
-    if (successData && successData.access_token) {
-      setAccessToken(successData.access_token);
-      setStepResults((prev) => ({
-        ...prev,
-        2: { success: true, data: successData },
-      }));
-      addLog("success", "✅ Access Token berhasil didapatkan!", {
-        token_preview: successData.access_token.substring(0, 30) + "...",
+    try {
+      const res = await fetch("/api/waba/exchange-token", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          appId: appId.trim(),
+          appSecret: appSecret.trim(),
+          code: authCode.trim(),
+          redirectUri: redirectUri.trim(),
+        }),
       });
-      setCurrentStep(3);
-    } else {
-      let friendlyMessage = lastError;
-      if (lastError.includes("Error validating verification code")) {
-        friendlyMessage = `${lastError}. \n💡 TIPS: Authorization Code Meta hanya bisa dipakai 1 KALI (single-use). Jika sebelumnya sudah pernah diklik atau gagal, mohon klik lagi tombol hijau 'Hubungkan WhatsApp Sebelas Decor' (Step 1) untuk mengambil Authorization Code baru, lalu klik Tukar Token kembali.`;
-      } else if (lastError.includes("Domain dari URL ini tidak termasuk") || lastError.includes("domain dari URL ini")) {
-        friendlyMessage = `${lastError}. \n💡 SOLUSI: Buka Meta Dashboard ➔ Pengaturan aplikasi ➔ Dasar ➔ Masukkan "flowku.my.id" pada kolom "Domain Aplikasi", lalu klik "Simpan Perubahan".`;
+
+      const data = await res.json();
+
+      if (data.access_token) {
+        setAccessToken(data.access_token);
+        setStepResults((prev) => ({
+          ...prev,
+          2: { success: true, data },
+        }));
+        addLog(
+          "success",
+          "✅ Access Token berhasil didapatkan via Server API!",
+          {
+            token_preview: data.access_token.substring(0, 30) + "...",
+          },
+        );
+        setCurrentStep(3);
+      } else {
+        const errorMsg = data.error?.message || JSON.stringify(data);
+        let friendlyMessage = errorMsg;
+
+        if (errorMsg.includes("Error validating verification code")) {
+          friendlyMessage = `${errorMsg}. \n💡 TIPS: Authorization Code Meta hanya bisa dipakai 1 KALI (single-use). Jika sebelumnya pernah diklik/gagal, mohon klik lagi tombol hijau 'Hubungkan WhatsApp Sebelas Decor' (Step 1) untuk mengambil Code baru, lalu klik Tukar Token kembali.`;
+        }
+
+        setStepResults((prev) => ({
+          ...prev,
+          2: {
+            success: false,
+            error: friendlyMessage,
+          },
+        }));
+        addLog("error", `Gagal mendapatkan Access Token: ${friendlyMessage}`, data);
       }
+    } catch (err: any) {
       setStepResults((prev) => ({
         ...prev,
-        2: {
-          success: false,
-          error: friendlyMessage,
-        },
+        2: { success: false, error: err.message },
       }));
-      addLog("error", `Gagal mendapatkan Access Token: ${friendlyMessage}`);
+      addLog("error", `Network error saat exchange token: ${err.message}`);
+    } finally {
+      setStepLoading(null);
     }
-    setStepLoading(null);
   };
 
   // Step 3: Subscribe WABA to App
