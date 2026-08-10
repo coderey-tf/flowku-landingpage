@@ -14,7 +14,11 @@ export async function OPTIONS() {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { appId, appSecret, code, redirectUri } = body;
+
+    // Utamakan mengambil App Secret & App ID dari Environment Variable demi keamanan
+    const appId = body.appId?.trim() || process.env.META_APP_ID;
+    const appSecret = body.appSecret?.trim() || process.env.META_APP_SECRET;
+    const code = body.code?.trim();
 
     if (!appId || !appSecret || !code) {
       return NextResponse.json(
@@ -26,36 +30,48 @@ export async function POST(request: Request) {
       );
     }
 
-    // Try without redirect_uri first (Standard Meta Graph API spec for Embedded Signup JS SDK)
-    const urlNoRedirect = `https://graph.facebook.com/v20.0/oauth/access_token?client_id=${appId.trim()}&client_secret=${appSecret.trim()}&code=${code.trim()}`;
-    let res = await fetch(urlNoRedirect, { method: "GET" });
-    let data = await res.json();
-
-    if (data.access_token) {
-      return NextResponse.json(data, {
-        headers: { "Access-Control-Allow-Origin": "* text/plain" },
-      });
-    }
-
-    // Secondary attempt with redirectUri if provided
-    if (redirectUri && redirectUri.trim()) {
-      const urlWithRedirect = `${urlNoRedirect}&redirect_uri=${encodeURIComponent(redirectUri.trim())}`;
-      res = await fetch(urlWithRedirect, { method: "GET" });
-      const dataWithRedirect = await res.json();
-      if (dataWithRedirect.access_token) {
-        return NextResponse.json(dataWithRedirect, {
-          headers: { "Access-Control-Allow-Origin": "*" },
-        });
-      }
-    }
-
-    return NextResponse.json(
-      data || { error: { message: "Gagal menukarkan token." } },
-      {
-        status: 400,
-        headers: { "Access-Control-Allow-Origin": "*" },
-      },
+    // SPESIFIKASI META EMBEDDED SIGNUP (JS SDK):
+    // Parameter `redirect_uri` WAJIB dikirimkan sebagai string kosong ("")
+    const tokenUrl = new URL(
+      "https://graph.facebook.com/v20.0/oauth/access_token",
     );
+    tokenUrl.searchParams.append("client_id", appId);
+    tokenUrl.searchParams.append("client_secret", appSecret);
+    tokenUrl.searchParams.append("code", code);
+    tokenUrl.searchParams.append("redirect_uri", ""); // Eksplisit string kosong
+
+    const res = await fetch(tokenUrl.toString(), {
+      method: "GET",
+      cache: "no-store",
+    });
+
+    const data = await res.json();
+
+    // Jika Meta mengembalikan respons error
+    if (!res.ok || data.error) {
+      return NextResponse.json(
+        {
+          error: {
+            message:
+              data.error?.message ||
+              "Gagal menukarkan token dari Meta Graph API.",
+            type: data.error?.type,
+            code: data.error?.code,
+            error_subcode: data.error?.error_subcode,
+          },
+        },
+        {
+          status: res.status || 400,
+          headers: { "Access-Control-Allow-Origin": "*" },
+        },
+      );
+    }
+
+    // Berhasil mendapatkan access_token
+    return NextResponse.json(data, {
+      status: 200,
+      headers: { "Access-Control-Allow-Origin": "*" },
+    });
   } catch (err: any) {
     return NextResponse.json(
       { error: { message: err.message || "Internal Server Error" } },
