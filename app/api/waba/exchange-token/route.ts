@@ -19,11 +19,13 @@ export async function POST(request: Request) {
     const appSecret = body.appSecret?.trim() || process.env.META_APP_SECRET;
     const code = body.code?.trim();
 
-    // Meta Embedded Signup (config_id): FB.login() JS SDK menggunakan
-    // URL halaman saat ini sebagai redirect_uri di OAuth dialog.
-    // Token exchange HARUS pakai redirect_uri yang SAMA PERSIS.
-    // Frontend mengirim redirectUri = window.location.href (tanpa query/hash).
-    const redirectUri = body.redirectUri?.trim() || "";
+    // Meta Embedded Signup (config_id): Dari debug popup URL user:
+    // redirect_uri=https://staticxx.facebook.com/x/connect/xd_arbiter/...
+    // fallback_redirect_uri=https://flowku.my.id/waba-coexistence
+    // Artinya SDK pakai channel_url internal (xd_arbiter) sebagai redirect_uri.
+    // Kalau kita kirim fallback_redirect_uri ke /oauth/access_token → mismatch → 36008.
+    // Solusi: JANGAN kirim redirect_uri untuk Embedded Signup JS SDK flow.
+    const _redirectUriDebug = body.redirectUri?.trim() || "(none-sent)";
 
     if (!appId || !appSecret || !code) {
       return NextResponse.json(
@@ -41,15 +43,16 @@ export async function POST(request: Request) {
     tokenUrl.searchParams.append("client_id", appId);
     tokenUrl.searchParams.append("client_secret", appSecret);
     tokenUrl.searchParams.append("code", code);
-    if (redirectUri) {
-      tokenUrl.searchParams.append("redirect_uri", redirectUri);
-    }
+    // JANGAN kirim redirect_uri — biarkan Meta pakai channel_url internal.
+    // Kalau tetap error, fallback akan coba kirim fallback_redirect_uri.
+    // tokenUrl.searchParams.append("redirect_uri", ...) dihapus sengaja.
 
     // Debug log
     console.log("[exchange-token]", {
       appId: appId.substring(0, 6) + "...",
       codeLen: code.length,
-      redirectUri: redirectUri || "(empty)",
+      frontendRedirectUri: _redirectUriDebug,
+      strategy: "no-redirect_uri (xd_arbiter flow)",
       tokenUrl: tokenUrl.toString().replace(appSecret, "***"),
     });
 
