@@ -28,7 +28,6 @@ import {
   ChevronDown,
   ChevronUp,
   Loader2,
-  Link2,
 } from "lucide-react";
 
 declare global {
@@ -81,10 +80,13 @@ export default function WabaCoexistencePage() {
   const [manualPhoneId, setManualPhoneId] = useState("");
   const [manualAccessToken, setManualAccessToken] = useState("");
 
-  // Set default redirectUri on mount (without trailing slash)
+  // Set default redirectUri on mount
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const currentUrl = window.location.href.split("?")[0].split("#")[0].replace(/\/+$/, "");
+      const currentUrl = window.location.href
+        .split("?")[0]
+        .split("#")[0]
+        .replace(/\/+$/, "");
       setRedirectUri(currentUrl);
     }
   }, []);
@@ -116,27 +118,26 @@ export default function WabaCoexistencePage() {
 
     window.fbAsyncInit = function () {
       if (window.FB) {
-        if ((window.FB as any)._flowkuInitialized) return; // prevent double-init race
+        if ((window.FB as any)._flowkuInitialized) return;
         (window.FB as any)._flowkuInitialized = true;
         window.FB.init({
           appId: appId.trim(),
           xfbml: true,
-          version: "v26.0",
+          version: "v20.0",
         });
 
         window.FB.AppEvents?.logPageView();
         setSdkReady(true);
         addLog(
           "info",
-          `Meta SDK v26.0 initialized successfully (App ID: ${appId})`,
+          `Meta SDK v20.0 initialized successfully (App ID: ${appId})`,
         );
 
-        // Check login status as per Meta Developer Guide
         window.FB.getLoginStatus(function (response: any) {
           if (response && response.status === "connected") {
             addLog(
               "info",
-              "Meta Login Status: Connected (Pengguna sudah login Meta)",
+              "Meta Login Status: Connected (Pengguna terverifikasi)",
               response.authResponse,
             );
           } else {
@@ -149,7 +150,6 @@ export default function WabaCoexistencePage() {
       }
     };
 
-    // If script is already loaded
     if (window.FB) {
       window.fbAsyncInit();
     }
@@ -159,7 +159,7 @@ export default function WabaCoexistencePage() {
     initFbSdk();
   }, [initFbSdk]);
 
-  // Listen for window message event from Meta (Embedded Signup FINISH)
+  // Listen for window message event from Meta (Embedded Signup Event)
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
       if (
@@ -192,7 +192,7 @@ export default function WabaCoexistencePage() {
 
             addLog(
               "success",
-              "🎉 BERHASIL COEXISTENCE! Nomor WhatsApp berhasil terhubung.",
+              "🎉 BERHASIL COEXISTENCE! Nomor WhatsApp terikat sempurna.",
               {
                 waba_id: wabaId,
                 phone_number_id: phoneId,
@@ -200,9 +200,6 @@ export default function WabaCoexistencePage() {
             );
 
             setShowNextSteps(true);
-            alert(
-              `Selamat! Nomor WhatsApp berhasil terhubung dalam mode Coexistence.\n\nWABA ID: ${wabaId || "-"}\nPhone Number ID: ${phoneId || "-"}`,
-            );
           } else if (data.event === "CANCEL") {
             addLog(
               "warning",
@@ -217,7 +214,7 @@ export default function WabaCoexistencePage() {
           }
         }
       } catch (e) {
-        // Abaikan message lain
+        // Abaikan message non-JSON
       }
     };
 
@@ -227,15 +224,11 @@ export default function WabaCoexistencePage() {
     };
   }, [addLog]);
 
+  // STEP 1: Launch Meta Embedded Signup Pop-up
   const launchWhatsAppSignup = () => {
     if (!window.FB) {
-      addLog(
-        "error",
-        "Meta SDK (FB) belum siap. Memuat ulang atau periksa koneksi internet.",
-      );
-      alert(
-        "Meta SDK belum siap! Mohon tunggu sebentar atau muat ulang halaman.",
-      );
+      addLog("error", "Meta SDK (FB) belum siap. Silakan refresh halaman.");
+      alert("Meta SDK belum siap! Mohon muat ulang halaman.");
       return;
     }
 
@@ -248,41 +241,28 @@ export default function WabaCoexistencePage() {
     window.FB.login(
       function (response: any) {
         setIsLoggingIn(false);
-        if (response && response.authResponse) {
-          // NEW FLOW: ambil accessToken langsung, tanpa code exchange
-          // Hapus response_type: 'code' → SDK default return accessToken
-          const token = response.authResponse.accessToken;
-          if (!token) {
-            addLog("error", "AccessToken tidak tersedia dari response FB.login.");
-            console.log("FB.login response tanpa accessToken:", response);
-            return;
-          }
-          setAuthCode(null); // code tidak diperlukan lagi
-          setAccessToken(token);
-          // Mark Step 1 & Step 2 sebagai success (sudah punya token)
-          setStepResults((prev) => ({
-            ...prev,
-            2: { success: true, data: { access_token: token, source: "FB.login direct" } },
-          }));
-          addLog("success", "✅ AccessToken diterima langsung dari FB.login! Skip code exchange.", {
-            token_preview: token.substring(0, 30) + "...",
+        if (response && response.authResponse && response.authResponse.code) {
+          const code = response.authResponse.code;
+          setAuthCode(code);
+
+          addLog("success", "✅ Authorization Code berhasil ditangkap!", {
+            code_preview: code.substring(0, 25) + "...",
           });
-          console.log("✅ AccessToken Diterima:", token);
-          setCurrentStep(3);
+
+          setCurrentStep(2);
           setShowNextSteps(true);
-          alert(
-            "Login Berhasil!\nAccess Token berhasil didapatkan langsung (tanpa perlu Tukar Token). Lanjutkan ke Step 3.",
-          );
         } else {
           addLog(
             "warning",
             "Login WhatsApp dibatalkan atau tidak disetujui pengguna.",
           );
-          console.log("Login dibatalkan pengguna.");
         }
       },
       {
         config_id: configId.trim(),
+        response_type: "code",
+        override_default_response_type: true,
+        auth_type: "rerequest",
         extras: {
           setup: {},
         },
@@ -297,28 +277,18 @@ export default function WabaCoexistencePage() {
     setTimeout(() => setCopiedKey(null), 2000);
   };
 
-  // Helper to get effective IDs (from auto-capture or manual input)
   const effectiveWabaId = wabaData?.waba_id || manualWabaId.trim();
   const effectivePhoneId = wabaData?.phone_number_id || manualPhoneId.trim();
   const effectiveToken = accessToken || manualAccessToken.trim();
 
-  // Step 2: Exchange Authorization Code for Access Token (legacy) OR direct use
+  // STEP 2: Exchange Authorization Code → Access Token
   const exchangeCodeForToken = async () => {
-    // NEW FLOW: jika sudah ada accessToken dari FB.login direct, skip exchange
-    if (accessToken) {
-      addLog("info", "AccessToken sudah ada dari Step 1, skip exchange.");
-      setCurrentStep(3);
-      return;
-    }
-
     if (!authCode) {
       addLog(
         "error",
         "Authorization Code belum tersedia. Selesaikan Step 1 terlebih dahulu.",
       );
-      alert(
-        "Authorization Code belum ada. Klik tombol hijau 'Hubungkan WhatsApp Sebelas Decor' terlebih dahulu.",
-      );
+      alert("Authorization Code belum ada. Jalankan Step 1 terlebih dahulu.");
       return;
     }
     if (!appSecret.trim()) {
@@ -330,14 +300,8 @@ export default function WabaCoexistencePage() {
     }
 
     setStepLoading(2);
-    addLog(
-      "info",
-      "Menukarkan Authorization Code → Access Token...",
-    );
+    addLog("info", "Menukarkan Authorization Code → Access Token...");
 
-    let data: any = null;
-
-    // First try Next.js Server API Route
     try {
       const res = await fetch("/api/waba/exchange-token", {
         method: "POST",
@@ -346,70 +310,46 @@ export default function WabaCoexistencePage() {
           appId: appId.trim(),
           appSecret: appSecret.trim(),
           code: authCode.trim(),
-          redirectUri: redirectUri.trim(),
+          redirectUri: "",
         }),
       });
 
-      const contentType = res.headers.get("content-type") || "";
-      if (contentType.includes("application/json")) {
-        data = await res.json();
-      }
-    } catch (e) {
-      // API route not reachable
-      addLog("error", "Backend API tidak terjangkau. Periksa koneksi internet.");
-      setStepLoading(null);
-      return;
-    }
+      const data = await res.json();
 
-
-    if (data && data.access_token) {
-      setAccessToken(data.access_token);
-      setStepResults((prev) => ({
-        ...prev,
-        2: { success: true, data },
-      }));
-      addLog(
-        "success",
-        "✅ Access Token berhasil didapatkan!",
-        {
+      if (res.ok && data.access_token) {
+        setAccessToken(data.access_token);
+        setStepResults((prev) => ({
+          ...prev,
+          2: { success: true, data },
+        }));
+        addLog("success", "✅ Access Token berhasil didapatkan!", {
           token_preview: data.access_token.substring(0, 30) + "...",
-        },
-      );
-      setCurrentStep(3);
-    } else {
-      const errorMsg = data?.error?.message || "Gagal mendapatkan token dari Meta.";
-      let friendlyMessage = errorMsg;
-
-      if (errorMsg.includes("Error validating verification code")) {
-        friendlyMessage = `${errorMsg}\n\n💡 TIPS: Authorization Code Meta hanya berlaku 1 KALI (single-use). Jika percobaannya gagal, mohon lakukan langkah berikut:\n1. Klik lagi tombol hijau 'Hubungkan WhatsApp Sebelas Decor' (Step 1) untuk mendapatkan Authorization Code BARU.\n2. Klik tombol kuning 'Tukar Token' kembali.`;
+        });
+        setCurrentStep(3);
+      } else {
+        const errorMsg =
+          data?.error?.message || "Gagal mendapatkan token dari Meta.";
+        setStepResults((prev) => ({
+          ...prev,
+          2: { success: false, error: errorMsg },
+        }));
+        addLog("error", `Gagal Exchange Token: ${errorMsg}`, data);
       }
-
-      setStepResults((prev) => ({
-        ...prev,
-        2: {
-          success: false,
-          error: friendlyMessage,
-        },
-      }));
-      addLog("error", `Gagal mendapatkan Access Token: ${friendlyMessage}`, data);
+    } catch (e: any) {
+      addLog("error", `Backend API error: ${e.message}`);
+    } finally {
+      setStepLoading(null);
     }
-    setStepLoading(null);
   };
 
-  // Step 3: Subscribe WABA to App
+  // STEP 3: Subscribe WABA to App
   const subscribeWaba = async () => {
     if (!effectiveWabaId) {
-      addLog(
-        "error",
-        "WABA ID belum tersedia. Pastikan Step 1 sudah selesai atau isi secara manual.",
-      );
+      addLog("error", "WABA ID belum tersedia. Periksa hasil Step 1.");
       return;
     }
     if (!effectiveToken) {
-      addLog(
-        "error",
-        "Access Token belum tersedia. Selesaikan Step 2 terlebih dahulu atau isi secara manual.",
-      );
+      addLog("error", "Access Token belum tersedia. Selesaikan Step 2.");
       return;
     }
 
@@ -441,11 +381,7 @@ export default function WabaCoexistencePage() {
             error: data.error?.message || JSON.stringify(data),
           },
         }));
-        addLog(
-          "error",
-          `Gagal subscribe WABA: ${data.error?.message || "Unknown error"}`,
-          data,
-        );
+        addLog("error", `Gagal subscribe WABA: ${data.error?.message}`, data);
       }
     } catch (err: any) {
       setStepResults((prev) => ({
@@ -458,73 +394,32 @@ export default function WabaCoexistencePage() {
     }
   };
 
-  // Step 4: Register Phone Number
+  // STEP 4: Register Phone Number (Bypassed for Coexistence SMB)
   const registerPhoneNumber = async () => {
-    if (!effectivePhoneId) {
-      addLog(
-        "error",
-        "Phone Number ID belum tersedia. Pastikan Step 1 sudah selesai atau isi secara manual.",
-      );
-      return;
-    }
-    if (!effectiveToken) {
-      addLog("error", "Access Token belum tersedia.");
-      return;
-    }
-
     setStepLoading(4);
     addLog(
       "info",
-      `Mendaftarkan Phone Number (${effectivePhoneId}) ke Cloud API...`,
+      "Mode Coexistence SMB: Step 4 (/register) dilewati otomatis...",
     );
 
-    try {
-      const res = await fetch(
-        `https://graph.facebook.com/v20.0/${effectivePhoneId}/register`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${effectiveToken}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            messaging_product: "whatsapp",
-            pin: "123456",
-          }),
-        },
-      );
-      const data = await res.json();
-
-      if (data.success) {
-        setStepResults((prev) => ({ ...prev, 4: { success: true, data } }));
-        addLog("success", "✅ Phone Number berhasil didaftarkan ke Cloud API!");
-        setCurrentStep(5);
-      } else {
-        setStepResults((prev) => ({
-          ...prev,
-          4: {
-            success: false,
-            error: data.error?.message || JSON.stringify(data),
-          },
-        }));
-        addLog(
-          "error",
-          `Gagal register phone number: ${data.error?.message || "Unknown error"}`,
-          data,
-        );
-      }
-    } catch (err: any) {
+    setTimeout(() => {
       setStepResults((prev) => ({
         ...prev,
-        4: { success: false, error: err.message },
+        4: {
+          success: true,
+          data: { message: "Bypassed: Coexistence SMB mode is auto-ready." },
+        },
       }));
-      addLog("error", `Network error saat register phone: ${err.message}`);
-    } finally {
+      addLog(
+        "success",
+        "✅ Step 4 Dilewati! Nomor Coexistence otomatis siap digunakan.",
+      );
+      setCurrentStep(5);
       setStepLoading(null);
-    }
+    }, 400);
   };
 
-  // Step 5: Send Test Message
+  // STEP 5: Send Test Message
   const sendTestMessage = async () => {
     if (!effectivePhoneId) {
       addLog("error", "Phone Number ID belum tersedia.");
@@ -602,7 +497,6 @@ export default function WabaCoexistencePage() {
         fontFamily: "var(--font-plus-jakarta-sans)",
       }}
     >
-      {/* Meta SDK Script */}
       <Script
         src="https://connect.facebook.net/en_US/sdk.js"
         strategy="afterInteractive"
@@ -757,7 +651,7 @@ export default function WabaCoexistencePage() {
               lineHeight: 1.6,
             }}
           >
-            Hubungkan WhatsApp ke Flowku &amp; Sebelas Decor menggunakan{" "}
+            Hubungkan WhatsApp ke Flowku menggunakan{" "}
             <strong style={{ color: "#25D366" }}>Mode Coexistence</strong>.
             WhatsApp di HP milikmu tetap aktif &amp; tidak akan ter-logout.
           </p>
@@ -836,14 +730,6 @@ export default function WabaCoexistencePage() {
               transition: "all 0.2s ease",
               opacity: isLoggingIn ? 0.7 : 1,
             }}
-            onMouseOver={(e) => {
-              if (!isLoggingIn)
-                e.currentTarget.style.transform = "translateY(-2px)";
-            }}
-            onMouseOut={(e) => {
-              if (!isLoggingIn)
-                e.currentTarget.style.transform = "translateY(0)";
-            }}
           >
             {isLoggingIn ? (
               <>
@@ -851,7 +737,7 @@ export default function WabaCoexistencePage() {
               </>
             ) : (
               <>
-                <Smartphone size={20} /> Hubungkan WhatsApp Sebelas Decor
+                <Smartphone size={20} /> Hubungkan WhatsApp Coexistence
               </>
             )}
           </button>
@@ -907,7 +793,7 @@ export default function WabaCoexistencePage() {
           </div>
         </div>
 
-        {/* Results Card (Shows when Authorization Code or WABA Data received) */}
+        {/* Results Card */}
         {(authCode || wabaData) && (
           <div
             className="glass-card"
@@ -936,7 +822,6 @@ export default function WabaCoexistencePage() {
             </div>
 
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-              {/* Auth Code */}
               {authCode && (
                 <div>
                   <div
@@ -949,7 +834,7 @@ export default function WabaCoexistencePage() {
                       letterSpacing: "0.5px",
                     }}
                   >
-                    Authorization Code (Siap ditukar di Step 2)
+                    Authorization Code
                   </div>
                   <div
                     style={{
@@ -997,7 +882,6 @@ export default function WabaCoexistencePage() {
                 </div>
               )}
 
-              {/* WABA ID */}
               {wabaData?.waba_id && (
                 <div>
                   <div
@@ -1057,7 +941,6 @@ export default function WabaCoexistencePage() {
                 </div>
               )}
 
-              {/* Phone Number ID */}
               {wabaData?.phone_number_id && (
                 <div>
                   <div
@@ -1133,7 +1016,6 @@ export default function WabaCoexistencePage() {
             overflow: "hidden",
           }}
         >
-          {/* Header toggle */}
           <button
             onClick={() => setShowNextSteps(!showNextSteps)}
             style={{
@@ -1175,8 +1057,8 @@ export default function WabaCoexistencePage() {
                     marginTop: 2,
                   }}
                 >
-                  Tukarkan Authorization Code, subscribe WABA, register phone,
-                  &amp; kirim pesan test
+                  Tukarkan Authorization Code, subscribe WABA, &amp; kirim pesan
+                  test
                 </div>
               </div>
             </div>
@@ -1189,7 +1071,6 @@ export default function WabaCoexistencePage() {
 
           {showNextSteps && (
             <div style={{ padding: "24px 28px" }}>
-              {/* Security Warning */}
               <div
                 style={{
                   background: "rgba(255, 101, 132, 0.1)",
@@ -1213,10 +1094,8 @@ export default function WabaCoexistencePage() {
                   <strong style={{ color: "#FF6584" }}>
                     ⚠️ Catatan Keamanan:
                   </strong>{" "}
-                  Halaman ini menyediakan simulasi interaktif untuk pengujian API. Di
-                  production real-world, penukaran token dan pemanggilan Graph API{" "}
-                  <strong>harus dilakukan dari Backend Server</strong> agar App
-                  Secret tidak terekspos ke publik.
+                  Penukaran token dilakukan secara aman lewat Next.js API Route
+                  sehingga App Secret tidak terekspos ke publik.
                 </div>
               </div>
 
@@ -1410,7 +1289,8 @@ export default function WabaCoexistencePage() {
                             fontWeight: 600,
                           }}
                         >
-                          App Secret Meta <span style={{ color: "#FF6584" }}>*</span>
+                          App Secret Meta{" "}
+                          <span style={{ color: "#FF6584" }}>*</span>
                         </label>
                         <div style={{ position: "relative" }}>
                           <input
@@ -1465,25 +1345,22 @@ export default function WabaCoexistencePage() {
                         >
                           Redirect URI (Otomatis)
                         </label>
-                        <div style={{ position: "relative" }}>
-                          <input
-                            type="text"
-                            value={redirectUri}
-                            onChange={(e) => setRedirectUri(e.target.value)}
-                            placeholder="e.g. https://flowku.my.id/waba-coexistence"
-                            style={{
-                              width: "100%",
-                              background: "rgba(0,0,0,0.3)",
-                              border: "1px solid rgba(255,255,255,0.15)",
-                              color: "var(--brand-primary-light)",
-                              padding: "10px 14px",
-                              borderRadius: 8,
-                              fontFamily: "monospace",
-                              fontSize: 12,
-                              outline: "none",
-                            }}
-                          />
-                        </div>
+                        <input
+                          type="text"
+                          value={redirectUri}
+                          readOnly
+                          style={{
+                            width: "100%",
+                            background: "rgba(0,0,0,0.3)",
+                            border: "1px solid rgba(255,255,255,0.15)",
+                            color: "var(--brand-primary-light)",
+                            padding: "10px 14px",
+                            borderRadius: 8,
+                            fontFamily: "monospace",
+                            fontSize: 12,
+                            outline: "none",
+                          }}
+                        />
                       </div>
                     </div>
 
@@ -1516,7 +1393,6 @@ export default function WabaCoexistencePage() {
                       Tukar Token
                     </button>
 
-                    {/* Display access token result */}
                     {accessToken && (
                       <div
                         style={{
@@ -1606,9 +1482,7 @@ export default function WabaCoexistencePage() {
                     <button
                       onClick={subscribeWaba}
                       disabled={
-                        stepLoading === 3 ||
-                        !effectiveWabaId ||
-                        !effectiveToken
+                        stepLoading === 3 || !effectiveWabaId || !effectiveToken
                       }
                       style={{
                         background:
@@ -1645,7 +1519,7 @@ export default function WabaCoexistencePage() {
                 <StepCard
                   stepNum={4}
                   title="Register Phone Number ke Cloud API"
-                  description="Mendaftarkan nomor telepon ke WhatsApp Cloud API."
+                  description="Status Coexistence SMB: Nomor otomatis aktif tanpa perlu pemanggilan endpoint /register."
                   icon={<Phone size={18} />}
                   isActive={currentStep >= 4}
                   isCompleted={!!stepResults[4]?.success}
@@ -1678,11 +1552,7 @@ export default function WabaCoexistencePage() {
                     </div>
                     <button
                       onClick={registerPhoneNumber}
-                      disabled={
-                        stepLoading === 4 ||
-                        !effectivePhoneId ||
-                        !effectiveToken
-                      }
+                      disabled={stepLoading === 4}
                       style={{
                         background:
                           "linear-gradient(135deg, #1A9E6E 0%, #0F2D1C 100%)",
@@ -1696,20 +1566,14 @@ export default function WabaCoexistencePage() {
                         display: "flex",
                         alignItems: "center",
                         gap: 6,
-                        opacity:
-                          stepLoading === 4 ||
-                          !effectivePhoneId ||
-                          !effectiveToken
-                            ? 0.5
-                            : 1,
                       }}
                     >
                       {stepLoading === 4 ? (
                         <Loader2 size={14} className="spin" />
                       ) : (
-                        <Phone size={14} />
+                        <CheckCircle2 size={14} />
                       )}
-                      Register Phone
+                      Konfirmasi Ready (Bypass Step)
                     </button>
                   </div>
                 </StepCard>
@@ -1750,7 +1614,8 @@ export default function WabaCoexistencePage() {
                             fontWeight: 600,
                           }}
                         >
-                          Nomor Tujuan <span style={{ color: "#FF6584" }}>*</span>
+                          Nomor Tujuan{" "}
+                          <span style={{ color: "#FF6584" }}>*</span>
                         </label>
                         <input
                           type="text"
@@ -1935,17 +1800,6 @@ export default function WabaCoexistencePage() {
               />
             </div>
           </div>
-          <p
-            style={{
-              fontSize: 12,
-              color: "var(--text-muted)",
-              marginTop: 12,
-            }}
-          >
-            * App ID dan Config ID diset secara default ke credential Sebelas
-            Decor. Anda dapat menggantinya jika ingin melakukan pengujian dengan
-            App ID lain.
-          </p>
         </div>
 
         {/* Live Logs Terminal */}
@@ -2012,8 +1866,8 @@ export default function WabaCoexistencePage() {
           >
             {logs.length === 0 ? (
               <div style={{ color: "var(--text-muted)", fontStyle: "italic" }}>
-                Belum ada log. Klik tombol &quot;Hubungkan WhatsApp Sebelas
-                Decor&quot; untuk memulai...
+                Belum ada log. Klik &quot;Hubungkan WhatsApp Coexistence&quot;
+                untuk memulai...
               </div>
             ) : (
               logs.map((log) => (
@@ -2048,7 +1902,7 @@ export default function WabaCoexistencePage() {
           </div>
         </div>
 
-        {/* How Coexistence Works Explanation */}
+        {/* Panduan */}
         <div
           className="glass-card"
           style={{
@@ -2099,9 +1953,8 @@ export default function WabaCoexistencePage() {
                 1. Apa itu Coexistence?
               </div>
               Mode Coexistence memungkinkan nomor WhatsApp Business resmi di HP
-              kamu tetap aktif mengirim &amp; menerima pesan biasa, sementara
-              sistem API (Flowku / Sebelas Decor) juga terhubung secara
-              bersisian.
+              kamu tetap aktif, sementara sistem API Flowku juga terhubung
+              secara bersisian.
             </div>
 
             <div
@@ -2119,11 +1972,10 @@ export default function WabaCoexistencePage() {
                   marginBottom: 6,
                 }}
               >
-                2. Apa fungsi Authorization Code?
+                2. Pendaftaran Otomatis
               </div>
-              Authorization Code yang didapat digunakan oleh sistem Backend
-              untuk ditukarkan menjadi Access Token Meta WABA secara aman
-              melalui server-to-server Graph API.
+              Pendaftaran nomor telepon terjadi via pop-up Meta Embedded Signup.
+              Pengguna tidak perlu mendaftarkan PIN 2FA manual atau OTP SMS.
             </div>
 
             <div
@@ -2141,11 +1993,10 @@ export default function WabaCoexistencePage() {
                   marginBottom: 6,
                 }}
               >
-                3. WABA &amp; Phone Number ID
+                3. Subscribed Apps
               </div>
-              Event Meta <code>WA_EMBEDDED_SIGNUP</code> otomatis mengirimkan
-              WABA ID dan Phone Number ID setelah otorisasi selesai untuk
-              didaftarkan ke sistem chatbot / automasi.
+              Setelah Step 3 (`subscribed_apps`) berhasil, server Webhook Flowku
+              akan langsung menerima lalu lintas pesan masuk secara real-time.
             </div>
           </div>
         </div>
@@ -2160,7 +2011,7 @@ export default function WabaCoexistencePage() {
         }}
       >
         <p style={{ color: "var(--text-muted)", fontSize: 14 }}>
-          © 2026 Flowku &amp; Sebelas Decor. WhatsApp Coexistence Integration.
+          © 2026 Flowku. WhatsApp Coexistence Integration.
         </p>
       </footer>
 
@@ -2182,9 +2033,7 @@ export default function WabaCoexistencePage() {
   );
 }
 
-// =============================================
 // StepCard Component
-// =============================================
 function StepCard({
   stepNum,
   title,
@@ -2233,7 +2082,6 @@ function StepCard({
           marginBottom: isActive ? 14 : 0,
         }}
       >
-        {/* Step badge */}
         <div
           style={{
             width: 32,
