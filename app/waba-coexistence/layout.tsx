@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Connect WhatsApp Business Coexistence — Flowku",
+  title: "CConnect WhatsApp Business Coexistence — Flowku",
   description:
     "Hubungkan WhatsApp Business tanpa logout dari HP menggunakan Mode Coexistence Meta WABA Embedded Signup.",
 };

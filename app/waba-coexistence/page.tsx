@@ -265,6 +265,8 @@ export default function WabaCoexistencePage() {
         auth_type: "rerequest",
         extras: {
           setup: {},
+          featureType: "whatsapp_business_app_onboarding",
+          sessionInfoVersion: "3",
         },
       },
     );
@@ -439,7 +441,7 @@ export default function WabaCoexistencePage() {
 
     try {
       const res = await fetch(
-        `https://graph.facebook.com/v20.0/${effectivePhoneId}/messages`,
+        `https://graph.facebook.com/v26.0/${effectivePhoneId}/messages`,
         {
           method: "POST",
           headers: {
